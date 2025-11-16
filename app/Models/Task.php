@@ -54,6 +54,11 @@ class Task extends Model
     {
     return $this->hasMany(Attachment::class);
     }
+    public function timeEntries()
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
+
 
 }
 

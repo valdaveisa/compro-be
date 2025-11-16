@@ -68,6 +68,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(Task::class, 'assignee_id');
     }
+    public function timeEntries()
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
 
 
 }

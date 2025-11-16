@@ -10,6 +10,7 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\LabelController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\TimeEntryController;
 
 
 // ================== AUTH API ==================
@@ -108,5 +109,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/tasks/{task}/attachments', [AttachmentController::class, 'store']);
     Route::delete('/attachments/{attachment}', [AttachmentController::class, 'destroy']);
 
+    // TIME TRACKING
+    Route::get('/tasks/{task}/time-entries', [TimeEntryController::class, 'index']);
+    Route::post('/tasks/{task}/time-entries', [TimeEntryController::class, 'store']);
+
+    Route::post('/tasks/{task}/time-entries/start', [TimeEntryController::class, 'start']);
+    Route::post('/tasks/{task}/time-entries/stop', [TimeEntryController::class, 'stop']);
+
+    // summary per project
+    Route::get('/projects/{project}/time-report', [TimeEntryController::class, 'projectReport']);
 
 });
