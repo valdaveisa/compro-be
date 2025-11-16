@@ -31,10 +31,12 @@ class TaskController extends Controller
             'description'   => 'nullable|string',
             'status'        => 'nullable|in:todo,in_progress,review,done',
             'priority'      => 'nullable|in:low,medium,high',
-            'due_date'      => 'nullable|date',
+            'start_date'    => 'nullable|date',
+            'due_date'      => 'nullable|date|after_or_equal:start_date',
             'assignee_id'   => 'nullable|exists:users,id',
             'parent_task_id'=> 'nullable|exists:tasks,id',
         ]);
+
 
         $data['status']       = $data['status'] ?? 'todo';
         $data['priority']     = $data['priority'] ?? 'medium';
@@ -58,14 +60,16 @@ class TaskController extends Controller
     public function update(Request $request, Task $task)
     {
         $data = $request->validate([
-            'title'         => 'sometimes|required|string|max:255',
+            'title'         => 'required|string|max:255',
             'description'   => 'nullable|string',
             'status'        => 'nullable|in:todo,in_progress,review,done',
             'priority'      => 'nullable|in:low,medium,high',
-            'due_date'      => 'nullable|date',
+            'start_date'    => 'nullable|date',
+            'due_date'      => 'nullable|date|after_or_equal:start_date',
             'assignee_id'   => 'nullable|exists:users,id',
             'parent_task_id'=> 'nullable|exists:tasks,id',
         ]);
+
 
         $task->update($data);
 
@@ -87,10 +91,21 @@ class TaskController extends Controller
             'status' => 'required|in:todo,in_progress,review,done',
         ]);
 
-        $task->update(['status' => $data['status']]);
+        $update = ['status' => $data['status']];
+
+        if ($data['status'] === 'done' && is_null($task->completed_at)) {
+            $update['completed_at'] = now();
+        }
+
+        if ($data['status'] !== 'done') {
+            $update['completed_at'] = null;
+        }
+
+        $task->update($update);
 
         return response()->json($task);
     }
+
 
     // PATCH /api/tasks/{task}/assign
     public function assignUser(Request $request, Task $task)

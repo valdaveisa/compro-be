@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\User;
+use App\Models\Task;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 
 class ProjectController extends Controller
@@ -133,4 +135,144 @@ class ProjectController extends Controller
 
         return response()->json(['message' => 'Member removed']);
     }
+
+    // GET /api/projects/{project}/kanban
+    public function kanban(Project $project)
+    {
+        $tasks = Task::with('assignee:id,name')
+            ->where('project_id', $project->id)
+            ->orderByRaw("FIELD(priority, 'high','medium','low')")
+            ->orderBy('due_date')
+            ->get();
+
+        $grouped = [
+            'todo'        => $tasks->where('status', 'todo')->values(),
+            'in_progress' => $tasks->where('status', 'in_progress')->values(),
+            'review'      => $tasks->where('status', 'review')->values(),
+            'done'        => $tasks->where('status', 'done')->values(),
+        ];
+
+        return response()->json($grouped);
+    }
+
+    // GET /api/projects/{project}/calendar?start=2025-11-01&end=2025-11-30
+    public function calendar(Request $request, Project $project)
+    {
+        $start = $request->query('start')
+            ? Carbon::parse($request->query('start'))->startOfDay()
+            : now()->startOfMonth();
+
+        $end = $request->query('end')
+            ? Carbon::parse($request->query('end'))->endOfDay()
+            : now()->endOfMonth();
+
+        $tasks = Task::where('project_id', $project->id)
+            ->whereBetween('due_date', [$start->toDateString(), $end->toDateString()])
+            ->orderBy('due_date')
+            ->get(['id', 'title', 'due_date', 'status', 'priority']);
+
+        $events = $tasks->map(function ($task) {
+            return [
+                'id'       => $task->id,
+                'title'    => $task->title,
+                'date'     => $task->due_date,
+                'status'   => $task->status,
+                'priority' => $task->priority,
+                'type'     => 'task',
+            ];
+        });
+
+        return response()->json($events);
+    }
+
+    // GET /api/projects/{project}/gantt
+    public function gantt(Project $project)
+    {
+        $tasks = Task::with('assignee:id,name')
+            ->where('project_id', $project->id)
+            ->whereNotNull('due_date')
+            ->orderBy('start_date')
+            ->get();
+
+        $items = $tasks->map(function ($task) {
+            return [
+                'id'        => $task->id,
+                'title'     => $task->title,
+                'start'     => $task->start_date
+                                    ? $task->start_date->toDateString()
+                                    : $task->created_at->toDateString(),
+                'end'       => $task->due_date->toDateString(),
+                'status'    => $task->status,
+                'assignee'  => $task->assignee ? [
+                    'id'   => $task->assignee->id,
+                    'name' => $task->assignee->name,
+                ] : null,
+            ];
+        });
+
+        return response()->json($items);
+    }
+
+    // GET /api/projects/{project}/stats
+    public function stats(Project $project)
+    {
+        $tasks = $project->tasks()->get();
+
+        $total      = $tasks->count();
+        $done       = $tasks->where('status', 'done')->count();
+        $byStatus   = $tasks->groupBy('status')->map->count();
+
+        $today = now()->toDateString();
+        $overdue = $tasks
+            ->where('status', '!=', 'done')
+            ->where('due_date', '<', $today)
+            ->count();
+
+        $completionRate = $total > 0 ? round($done / $total * 100, 1) : 0;
+
+        return response()->json([
+            'total_tasks'      => $total,
+            'done_tasks'       => $done,
+            'completion_rate'  => $completionRate,    // %
+            'overdue_tasks'    => $overdue,
+            'tasks_by_status'  => $byStatus,
+        ]);
+    }
+
+    // GET /api/projects/{project}/member-performance
+    public function memberPerformance(Project $project)
+    {
+        $members = $project->members; // user2 user3 dst
+
+        $data = $members->map(function ($user) use ($project) {
+            $tasksQuery = Task::where('project_id', $project->id)
+                ->where('assignee_id', $user->id);
+
+            $assigned = (clone $tasksQuery)->count();
+            $done     = (clone $tasksQuery)->where('status', 'done')->count();
+
+            $durations = (clone $tasksQuery)
+                ->whereNotNull('completed_at')
+                ->get()
+                ->map(fn ($task) => $task->created_at->diffInDays($task->completed_at));
+
+            $avgDays = $durations->count() ? round($durations->avg(), 1) : null;
+
+            return [
+                'user' => [
+                    'id'    => $user->id,
+                    'name'  => $user->name,
+                    'email' => $user->email,
+                ],
+                'tasks_assigned'       => $assigned,
+                'tasks_done'           => $done,
+                'done_ratio'           => $assigned > 0 ? round($done / $assigned * 100, 1) : 0,
+                'avg_completion_days'  => $avgDays,
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+
 }

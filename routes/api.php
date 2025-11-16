@@ -119,4 +119,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // summary per project
     Route::get('/projects/{project}/time-report', [TimeEntryController::class, 'projectReport']);
 
+    // PROJECT VIEWS (kanban, calendar, gantt, stats)
+    Route::get('/projects/{project}/kanban', [ProjectController::class, 'kanban']);
+    Route::get('/projects/{project}/calendar', [ProjectController::class, 'calendar']);
+    Route::get('/projects/{project}/gantt', [ProjectController::class, 'gantt']);
+    Route::get('/projects/{project}/stats', [ProjectController::class, 'stats']);
+    Route::get('/projects/{project}/member-performance', [ProjectController::class, 'memberPerformance']);
+
+
 });
