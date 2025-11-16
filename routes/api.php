@@ -9,6 +9,8 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\LabelController;
 use App\Http\Controllers\CommentController;
+use App\Http\Controllers\AttachmentController;
+
 
 // ================== AUTH API ==================
 
@@ -100,5 +102,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/tasks/{task}/comments', [CommentController::class, 'store']);
     Route::put('/comments/{comment}', [CommentController::class, 'update']);
     Route::delete('/comments/{comment}', [CommentController::class, 'destroy']);
+
+    // ATTACHMENTS
+    Route::get('/tasks/{task}/attachments', [AttachmentController::class, 'index']);
+    Route::post('/tasks/{task}/attachments', [AttachmentController::class, 'store']);
+    Route::delete('/attachments/{attachment}', [AttachmentController::class, 'destroy']);
+
 
 });
