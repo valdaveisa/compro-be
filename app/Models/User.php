@@ -20,6 +20,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'username',   
         'email',
         'password',
     ];
@@ -72,6 +73,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(TimeEntry::class);
     }
-
+    public function notificationsCustom()
+    {
+        return $this->hasMany(UserNotification::class);
+    }
 
 }

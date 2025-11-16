@@ -11,6 +11,7 @@ use App\Http\Controllers\LabelController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\TimeEntryController;
+use App\Http\Controllers\NotificationController;
 
 
 // ================== AUTH API ==================
@@ -19,12 +20,14 @@ use App\Http\Controllers\TimeEntryController;
 Route::post('/register', function (Request $request) {
     $validated = $request->validate([
         'name'                  => 'required|string|max:255',
+        'username'              => 'required|string|max:50|unique:users,username',
         'email'                 => 'required|email|unique:users,email',
         'password'              => 'required|string|min:8|confirmed',
     ]);
 
     $user = User::create([
         'name'     => $validated['name'],
+        'username' => $validated['username'],
         'email'    => $validated['email'],
         'password' => Hash::make($validated['password']),
     ]);
@@ -36,6 +39,7 @@ Route::post('/register', function (Request $request) {
         'token' => $token,
     ], 201);
 });
+
 
 // /api/login
 Route::post('/login', function (Request $request) {
@@ -126,5 +130,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/projects/{project}/stats', [ProjectController::class, 'stats']);
     Route::get('/projects/{project}/member-performance', [ProjectController::class, 'memberPerformance']);
 
+    // NOTIFICATIONS
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
 });
