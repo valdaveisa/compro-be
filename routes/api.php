@@ -16,7 +16,7 @@ use App\Http\Controllers\NotificationController;
 
 // ================== AUTH API ==================
 
-// /api/register  (prefix /api datang otomatis, jadi DI SINI cukup /register)
+// REGISTER
 Route::post('/register', function (Request $request) {
     $validated = $request->validate([
         'name'                  => 'required|string|max:255',
@@ -40,22 +40,21 @@ Route::post('/register', function (Request $request) {
     ], 201);
 });
 
-
-// /api/login
+// LOGIN
 Route::post('/login', function (Request $request) {
-    $validated = $request->validate([
+    $credentials = $request->validate([
         'email'    => 'required|email',
-        'password' => 'required|string',
+        'password' => 'required',
     ]);
 
-    $user = User::where('email', $validated['email'])->first();
-
-    if (! $user || ! Hash::check($validated['password'], $user->password)) {
-        throw ValidationException::withMessages([
-            'email' => ['The provided credentials are incorrect.'],
-        ]);
+    if (! Auth::attempt($credentials)) {
+        return response()->json([
+            'message' => 'Email atau password salah.'
+        ], 401);
     }
 
+    /** @var \App\Models\User $user */
+    $user  = $request->user();
     $token = $user->createToken('api-token')->plainTextToken;
 
     return response()->json([

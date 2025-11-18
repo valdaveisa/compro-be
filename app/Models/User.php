@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Carbon;
+use DateTimeInterface;
 
 class User extends Authenticatable
 {
@@ -76,6 +78,14 @@ class User extends Authenticatable
     public function notificationsCustom()
     {
         return $this->hasMany(UserNotification::class);
+    }
+    protected function serializeDate(DateTimeInterface $date): string
+    {
+        $tz = config('app.timezone', 'Asia/Jakarta');
+
+        return Carbon::instance($date)
+            ->setTimezone($tz)
+            ->format('Y-m-d H:i:s');
     }
 
 }
