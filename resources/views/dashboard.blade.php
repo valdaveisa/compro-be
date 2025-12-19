@@ -365,6 +365,9 @@
     <div class="page-header">
         <h1 class="page-title">Manajemen Proyek & Tugas</h1>
         <div class="btn-action-group">
+            @if(auth()->user()->role === 'admin')
+            <a href="{{ route('admin.users.index') }}" class="btn-action" style="font-size: 0.9rem; margin-right: 5px;">👑 Admin Panel</a>
+            @endif
             <a href="{{ route('reports.index') }}" class="btn-action" style="font-size: 0.9rem; margin-right: 5px;">📊 Laporan</a>
             <a href="{{ route('notifications.index') }}" class="btn-action" style="font-size: 0.9rem; position: relative; margin-right: 10px;">
                 🔔 Notifikasi

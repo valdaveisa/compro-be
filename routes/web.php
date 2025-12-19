@@ -48,6 +48,10 @@ Route::middleware(['auth'])->group(function () {
     // Admin Routes
     Route::middleware(['auth', 'admin'])->group(function () {
         Route::get('/admin/users', [\App\Http\Controllers\UserController::class, 'index'])->name('admin.users.index');
+        Route::post('/admin/users', [\App\Http\Controllers\UserController::class, 'store'])->name('admin.users.store');
+        Route::put('/admin/users/{user}', [\App\Http\Controllers\UserController::class, 'update'])->name('admin.users.update');
+        Route::delete('/admin/users/{user}', [\App\Http\Controllers\UserController::class, 'destroy'])->name('admin.users.destroy');
+        // Legacy or specific patch if needed, but update covers it
         Route::patch('/admin/users/{user}/role', [\App\Http\Controllers\UserController::class, 'updateRole'])->name('admin.users.updateRole');
     });
 });

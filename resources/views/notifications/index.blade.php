@@ -83,16 +83,7 @@
             </form>
         </div>
 
-        <div style="background: #0b0e14; border: 1px solid #2D3748; border-radius: 8px; padding: 20px;">
-            <h3 style="color:#fff; font-size:1rem; margin-bottom:10px;">Integrasi Email (Kirim Tugas via Email)</h3>
-            <p style="color:#718096; font-size:0.9rem; margin-bottom:15px;">Anda dapat membuat tugas baru dengan mengirimkan email ke alamat khusus berikut:</p>
-            
-            <div style="background:#1A202C; padding:10px; border-radius:6px; color:#ECC94B; font-family:monospace; margin-bottom:15px; border:1px solid #2D3748;">
-                task-pms@sistemanda.com
-            </div>
-            
-            <p style="color:#718096; font-size:0.85rem;">Subjek email akan menjadi Nama Tugas, dan isi email akan menjadi Deskripsi Tugas.</p>
-        </div>
+
     </div>
 </div>
 
