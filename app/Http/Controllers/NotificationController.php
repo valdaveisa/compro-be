@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
-    // GET /api/notifications?only_unread=1
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -19,10 +19,31 @@ class NotificationController extends Controller
             $query->where('is_read', false);
         }
 
-        return $query->get();
+        $notifications = $query->get();
+        $settings = $user->settings ?? [];
+
+        return view('notifications.index', compact('notifications', 'settings'));
     }
 
-    // POST /api/notifications/{notification}/read
+    public function updateSettings(Request $request)
+    {
+        $user = $request->user();
+        
+        // Checkboxes only send 'on' if checked, or nothing if unchecked. 
+        // We will merge with existing settings or overwrite? 
+        // Best approach for checkboxes: Manually build array based on what's possible, or just take $request->all().
+        // Since we only have checkboxes for now, we can just save $request->except(['_token']).
+        
+        $settings = $request->except(['_token']);
+        
+        // Since unchecked checkboxes are not sent, we should probably default them to false or handle them in the view logic (isset).
+        // Saving exactly what is sent is fine if we use `?? false` in blade.
+        
+        $user->update(['settings' => $settings]);
+
+        return redirect()->route('dashboard')->with('success', 'Pengaturan berhasil disimpan.');
+    }
+
     public function markAsRead(Request $request, UserNotification $notification)
     {
         $user = $request->user();
@@ -36,7 +57,6 @@ class NotificationController extends Controller
         return response()->json(['message' => 'Marked as read']);
     }
 
-    // POST /api/notifications/read-all
     public function markAllAsRead(Request $request)
     {
         $user = $request->user();
@@ -45,6 +65,6 @@ class NotificationController extends Controller
             ->where('is_read', false)
             ->update(['is_read' => true]);
 
-        return response()->json(['message' => 'All notifications marked as read']);
+        return redirect()->back()->with('success', 'Semua notifikasi telah ditandai sebagai dibaca.');
     }
 }

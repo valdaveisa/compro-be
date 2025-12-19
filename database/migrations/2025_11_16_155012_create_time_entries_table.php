@@ -26,7 +26,6 @@ return new class extends Migration
             // durasi dalam menit (disimpan setelah stop)
             $table->integer('duration_minutes')->nullable();
 
-            // optional catatan
             $table->text('note')->nullable();
 
             $table->timestamps();

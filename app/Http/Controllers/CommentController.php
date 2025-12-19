@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 
 class CommentController extends Controller
 {
-    // GET /api/tasks/{task}/comments
+
     public function index(Task $task)
     {
         return $task->comments()
@@ -19,7 +19,6 @@ class CommentController extends Controller
             ->get();
     }
 
-    // POST /api/tasks/{task}/comments
     public function store(Request $request, Task $task)
     {
         $user = $request->user();
@@ -46,12 +45,12 @@ class CommentController extends Controller
         );
     }
 
-    // PUT /api/comments/{comment}
+
     public function update(Request $request, Comment $comment)
     {
         $user = $request->user();
 
-        // aturan sederhana: hanya pemilik comment boleh edit
+        // aturan hanya pemilik comment boleh edit
         if ($comment->user_id !== $user->id) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
@@ -65,7 +64,6 @@ class CommentController extends Controller
         return response()->json($comment->load('user:id,name,email'));
     }
 
-    // DELETE /api/comments/{comment}
     public function destroy(Request $request, Comment $comment)
     {
         $user = $request->user();
@@ -81,33 +79,48 @@ class CommentController extends Controller
 
     protected function handleMentions(Comment $comment): void
     {
-        // cari pola @username di content
-        preg_match_all('/@([A-Za-z0-9_\.]+)/', $comment->content, $matches);
-
-        $usernames = collect($matches[1] ?? [])->unique();
-
-        if ($usernames->isEmpty()) {
-            return;
-        }
-
         $task = $comment->task;
         $project = $task->project;
         $author = $comment->user;
+        $content = $comment->content;
 
-        // cari user yang username-nya ada di daftar mention
-        $mentionedUsers = User::whereIn('username', $usernames)->get();
+        // 1. Existing Username Logic (@username)
+        preg_match_all('/@([A-Za-z0-9_\.]+)/', $content, $matches);
+        $usernames = collect($matches[1] ?? [])->unique();
 
-        foreach ($mentionedUsers as $mentioned) {
-            // jangan kirim notif ke diri sendiri
-            if ($mentioned->id === $author->id) {
-                continue;
+        $mentionedUserIds = collect();
+
+        if ($usernames->isNotEmpty()) {
+            $usersByUsername = User::whereIn('username', $usernames)->pluck('id');
+            $mentionedUserIds = $mentionedUserIds->merge($usersByUsername);
+        }
+
+        // 2. Email Logic (Check if any project member's email is present in text)
+        // This allows users to tag by typing the email, e.g. "hey user@example.com check this"
+        // Get all potential users from the project or task
+        $potentialUsers = $project ? $project->members : collect(); // Simple fetch, might be heavy for huge projects but fine here
+        
+        foreach ($potentialUsers as $u) {
+            if ($u->id === $author->id) continue;
+            
+            // Check if email is in content (case insensitive)
+            if (stripos($content, $u->email) !== false) {
+                $mentionedUserIds->push($u->id);
             }
+        }
+        
+        $mentionedUserIds = $mentionedUserIds->unique();
 
+        foreach ($mentionedUserIds as $uid) {
+            if ($uid === $author->id) continue;
+
+            // Check if notif already exists for this comment to avoid dupes if edited (optional, skipping for simple store)
+            
             UserNotification::create([
-                'user_id'    => $mentioned->id,
+                'user_id'    => $uid,
                 'type'       => 'comment_mention',
-                'title'      => 'You were mentioned in a comment',
-                'message'    => "{$author->name} (@{$author->username}) mentioned you in task '{$task->title}'",
+                'title'      => 'You were mentioned',
+                'message'    => "{$author->name} mentioned you in task '{$task->title}'",
                 'project_id' => $project->id ?? null,
                 'task_id'    => $task->id,
             ]);

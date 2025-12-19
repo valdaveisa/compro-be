@@ -16,6 +16,6 @@ abstract class BaseModel extends Model
         return Carbon::instance($date)
             ->setTimezone($tz)
             ->format('Y-m-d H:i:s'); 
-        // kalau mau ISO 8601 dengan offset: ->format('Y-m-d\TH:i:sP');
+        
     }
 }

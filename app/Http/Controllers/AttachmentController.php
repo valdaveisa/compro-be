@@ -46,4 +46,9 @@ class AttachmentController extends Controller
 
         return response()->json(['message' => 'Attachment deleted']);
     }
+
+    public function download(Attachment $attachment)
+    {
+        return Storage::download($attachment->path, $attachment->filename);
+    }
 }

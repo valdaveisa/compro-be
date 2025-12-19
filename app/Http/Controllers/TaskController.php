@@ -9,19 +9,9 @@ use Illuminate\Http\Request;
 
 class TaskController extends Controller
 {
-    // GET /api/projects/{project}/tasks
-    public function index(Request $request, Project $project)
-    {
-        // nanti FE bisa pakai ini untuk kanban/gantt/calendar
-        $tasks = Task::with(['assignee', 'labels', 'subtasks'])
-            ->where('project_id', $project->id)
-            ->orderBy('due_date')
-            ->get();
-
-        return response()->json($tasks);
-    }
-
-    // POST /api/projects/{project}/tasks
+    /**
+     * Store a newly created task in storage.
+     */
     public function store(Request $request, Project $project)
     {
         $user = $request->user();
@@ -31,32 +21,34 @@ class TaskController extends Controller
             'description'   => 'nullable|string',
             'status'        => 'nullable|in:todo,in_progress,review,done',
             'priority'      => 'nullable|in:low,medium,high',
+            'progress'      => 'nullable|integer|between:0,100',
+            'parent_task_id'=> 'nullable|exists:tasks,id',
             'start_date'    => 'nullable|date',
             'due_date'      => 'nullable|date|after_or_equal:start_date',
             'assignee_id'   => 'nullable|exists:users,id',
-            'parent_task_id'=> 'nullable|exists:tasks,id',
         ]);
-
 
         $data['status']       = $data['status'] ?? 'todo';
         $data['priority']     = $data['priority'] ?? 'medium';
         $data['project_id']   = $project->id;
         $data['created_by']   = $user->id;
+        $data['assignee_id']  = $data['assignee_id'] ?? $user->id; 
 
         $task = Task::create($data);
 
-        return response()->json($task, 201);
+        // Log Activity
+        \App\Models\ActivityLog::create([
+            'user_id' => $user->id,
+            'subject_type' => Task::class,
+            'subject_id' => $task->id,
+            'action' => 'created task',
+            'description' => "Created task '{$task->title}' in project '{$project->name}'",
+        ]);
+
+        return redirect()->route('dashboard', ['project_id' => $project->id])
+            ->with('success', 'Task added successfully.');
     }
 
-    // GET /api/tasks/{task}
-    public function show(Task $task)
-    {
-        $task->load(['project', 'assignee', 'labels', 'subtasks']);
-
-        return response()->json($task);
-    }
-
-    // PUT /api/tasks/{task}
     public function update(Request $request, Task $task)
     {
         $data = $request->validate([
@@ -64,24 +56,49 @@ class TaskController extends Controller
             'description'   => 'nullable|string',
             'status'        => 'nullable|in:todo,in_progress,review,done',
             'priority'      => 'nullable|in:low,medium,high',
+            'progress'      => 'nullable|integer|between:0,100',
+            'parent_task_id'=> 'nullable|exists:tasks,id',
             'start_date'    => 'nullable|date',
             'due_date'      => 'nullable|date|after_or_equal:start_date',
             'assignee_id'   => 'nullable|exists:users,id',
-            'parent_task_id'=> 'nullable|exists:tasks,id',
         ]);
 
-
+        $oldStatus = $task->status;
         $task->update($data);
 
-        return response()->json($task);
+        // Log Status Change
+        if ($oldStatus !== $task->status) {
+             \App\Models\ActivityLog::create([
+                'user_id' => $request->user()->id,
+                'subject_type' => Task::class,
+                'subject_id' => $task->id,
+                'action' => 'updated status',
+                'description' => "Updated status of task '{$task->title}' from {$oldStatus} to {$task->status}",
+            ]);
+        } else {
+             \App\Models\ActivityLog::create([
+                'user_id' => $request->user()->id,
+                'subject_type' => Task::class,
+                'subject_id' => $task->id,
+                'action' => 'updated task',
+                'description' => "Updated task details for '{$task->title}'",
+            ]);
+        }
+
+        return redirect()->route('dashboard', ['project_id' => $task->project_id])
+            ->with('success', 'Task updated successfully.');
     }
 
-    // DELETE /api/tasks/{task}
+    /**
+     * Remove the specified task from storage.
+     */
     public function destroy(Task $task)
     {
+        $projectId = $task->project_id;
         $task->delete();
 
-        return response()->json(['message' => 'Task deleted']);
+        return redirect()->route('dashboard', ['project_id' => $projectId])
+            ->with('success', 'Task deleted successfully.');
     }
 
     // PATCH /api/tasks/{task}/status
@@ -137,5 +154,11 @@ class TaskController extends Controller
         $task->labels()->detach($label->id);
 
         return response()->json(['message' => 'Label detached']);
+    }
+
+    public function show(Task $task)
+    {
+        $task->load(['subtasks.assignee', 'assignee', 'comments.user', 'attachments', 'timeEntries', 'parent']);
+        return response()->json($task);
     }
 }

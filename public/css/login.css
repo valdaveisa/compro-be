@@ -1,0 +1,249 @@
+:root {
+    --primary-yellow: #FFC83D;
+    --dark-bg: #1A1F2C;
+    --dark-overlay: rgba(26, 31, 44, 0.85);
+    --text-white: #FFFFFF;
+    --text-gray: #CCCCCC;
+    --input-bg: #FFFFFF;
+    --error-red: #DC2626;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+    background-color: var(--dark-bg);
+    color: var(--text-white);
+    min-height: 100vh;
+    display: flex;
+    overflow: hidden;
+}
+
+.login-container {
+    display: flex;
+    width: 100%;
+    height: 100vh;
+}
+
+/* Left Section */
+.left-section {
+    flex: 1;
+    position: relative;
+    padding: 40px 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background-image: url('../images/login-bg.jpg'); /* Placeholder, needs actual image or gradient */
+    background-size: cover;
+    background-position: center;
+}
+
+.left-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(26, 31, 44, 0.95) 0%, rgba(26, 31, 44, 0.7) 100%);
+    z-index: 1;
+}
+
+.branding {
+    position: absolute;
+    top: 40px;
+    left: 60px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.logo-pill {
+    background: white;
+    color: black;
+    padding: 8px 24px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.app-name {
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    line-height: 1.2;
+}
+
+.app-name span:first-child {
+    font-weight: normal;
+    color: var(--text-gray);
+}
+
+.app-name span:last-child {
+    font-weight: bold;
+    color: white;
+}
+
+.hero-text {
+    position: relative;
+    z-index: 2;
+    font-size: 56px;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 20px;
+}
+
+/* Right Section */
+.right-section {
+    flex: 0.8;
+    background-color: var(--dark-bg); /* Or slightly lighter/transparent if needed */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 80px;
+    position: relative;
+}
+
+.top-bar {
+    position: absolute;
+    top: 40px;
+    right: 60px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.lang-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-gray);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.admin-btn {
+    background-color: var(--primary-yellow);
+    color: black;
+    padding: 10px 20px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.login-form-container {
+    max-width: 450px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+h1.login-title {
+    font-size: 48px;
+    font-weight: 700;
+    margin-bottom: 40px;
+    color: white;
+}
+
+.form-group {
+    margin-bottom: 24px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 16px;
+    color: #E2E8F0;
+}
+
+.form-input {
+    width: 100%;
+    padding: 16px;
+    border-radius: 12px;
+    border: none;
+    background: white;
+    font-size: 16px;
+    font-weight: 500;
+    color: #1A1F2C;
+    outline: none;
+}
+
+.form-input-group {
+    position: relative;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    background: none;
+    border: none;
+}
+
+.form-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    margin-bottom: 24px;
+}
+
+.error-message {
+    color: var(--error-red);
+    font-size: 14px;
+}
+
+.forgot-password {
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.submit-btn {
+    width: 100%;
+    background-color: var(--primary-yellow);
+    color: #1A1F2C;
+    border: none;
+    padding: 16px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: transform 0.1s;
+}
+
+.submit-btn:hover {
+    transform: scale(1.02);
+}
+
+.no-account {
+    margin-top: 24px;
+    text-align: center;
+    color: var(--text-gray);
+    font-size: 14px;
+}
+
+.no-account a {
+    color: var(--primary-yellow);
+    text-decoration: none;
+    margin-left: 4px;
+}
+
+@media (max-width: 1024px) {
+    .left-section {
+        display: none;
+    }
+    .right-section {
+        flex: 1;
+        padding: 40px;
+    }
+}

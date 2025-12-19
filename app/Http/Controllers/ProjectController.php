@@ -10,27 +10,9 @@ use Illuminate\Http\Request;
 
 class ProjectController extends Controller
 {
-    // GET /api/projects
-    public function index(Request $request)
-    {
-        $user = $request->user();
-
-        $projects = Project::withCount([
-                'tasks as total_tasks',
-                'tasks as done_tasks' => function ($q) {
-                    $q->where('status', 'done');
-                },
-            ])
-            ->where('created_by', $user->id)
-            ->orWhereHas('members', function ($q) use ($user) {
-                $q->where('users.id', $user->id);
-            })
-            ->get();
-
-        return response()->json($projects);
-    }
-
-    // POST /api/projects
+    /**
+     * Store a newly created project in storage.
+     */
     public function store(Request $request)
     {
         $user = $request->user();
@@ -40,37 +22,70 @@ class ProjectController extends Controller
             'description' => 'nullable|string',
             'start_date'  => 'nullable|date',
             'end_date'    => 'nullable|date|after_or_equal:start_date',
+            'status'      => 'nullable|in:planned,active,on_hold,done',
         ]);
 
-        $data['status']     = 'planned';
+        $data['status']     = $data['status'] ?? 'planned';
         $data['created_by'] = $user->id;
 
         $project = Project::create($data);
 
-        // otomatis jadikan creator sebagai PM di project
+        // Auto-assign creator as PM
         $project->members()->attach($user->id, [
             'role_in_project' => 'pm',
         ]);
 
-        return response()->json($project, 201);
+        \App\Models\ActivityLog::create([
+            'user_id' => $user->id,
+            'subject_type' => Project::class,
+            'subject_id' => $project->id, // Fixed: use project->id
+            'action' => 'created project',
+            'description' => "Created project '{$project->name}'",
+        ]);
+
+        // Handle Members (Array of IDs)
+        if ($request->filled('members') && is_array($request->members)) {
+            $memberIds = $request->members;
+            // Attach members
+            foreach ($memberIds as $memberId) {
+                if ($memberId != $user->id) { // Avoid duplicating PM
+                    $project->members()->attach($memberId, ['role_in_project' => 'member']);
+                    
+                    // Notify new member
+                    \App\Models\UserNotification::create([
+                        'user_id' => $memberId,
+                        'type' => 'project_invite',
+                        'title' => 'Project Invitation',
+                        'message' => "You have been added to project '{$project->name}' by {$user->name}",
+                        'project_id' => $project->id
+                    ]);
+
+                     // Log Member Add
+                     $memberUser = User::find($memberId);
+                     \App\Models\ActivityLog::create([
+                        'user_id' => $user->id,
+                        'subject_type' => Project::class,
+                        'subject_id' => $project->id, 
+                        'action' => 'added member',
+                        'description' => "Added member '{$memberUser->name}' to project '{$project->name}'",
+                    ]);
+                }
+            }
+        }
+
+        return redirect()->route('dashboard', ['project_id' => $project->id])
+            ->with('success', 'Project created successfully.');
     }
 
-    // GET /api/projects/{project}
-    public function show(Request $request, Project $project)
-    {
-        $project->load(['members', 'tasks']);
-
-        return response()->json($project);
-    }
-
-    // PUT /api/projects/{project}
+    /**
+     * Update the specified project in storage.
+     */
     public function update(Request $request, Project $project)
     {
         $user = $request->user();
 
-        // aturan simpel: hanya creator yang boleh update
         if ($project->created_by !== $user->id) {
-            return response()->json(['message' => 'Forbidden'], 403);
+            abort(403);
         }
 
         $data = $request->validate([
@@ -79,200 +94,125 @@ class ProjectController extends Controller
             'start_date'  => 'nullable|date',
             'end_date'    => 'nullable|date|after_or_equal:start_date',
             'status'      => 'nullable|in:planned,active,on_hold,done',
+            'members'     => 'nullable|array',
+            'members.*'   => 'exists:users,id'
         ]);
 
         $project->update($data);
 
-        return response()->json($project);
+        // Handle Members Update
+        if ($request->has('members') && is_array($request->members)) {
+            $memberIds = $request->members;
+            
+            // Ensure Owner is always there
+            if (!in_array($project->created_by, $memberIds)) {
+                $memberIds[] = $project->created_by;
+            }
+
+            $syncData = [];
+            foreach ($memberIds as $uid) {
+                $role = ($uid == $project->created_by) ? 'pm' : 'member';
+                $syncData[$uid] = ['role_in_project' => $role];
+            }
+            
+            $changes = $project->members()->sync($syncData);
+            
+            // Notify attached users
+            foreach ($changes['attached'] as $attachedId) {
+                if ($attachedId != $user->id) {
+                    \App\Models\UserNotification::create([
+                        'user_id' => $attachedId,
+                        'type' => 'project_invite',
+                        'title' => 'Project Invitation',
+                        'message' => "You have been added to project '{$project->name}' by {$user->name}",
+                        'project_id' => $project->id
+                    ]);
+                     // Log Member Add
+                     $memberUser = User::find($attachedId); // Optimization: Fetch all at once if needed
+                     if($memberUser){
+                        \App\Models\ActivityLog::create([
+                            'user_id' => $user->id,
+                            'subject_type' => Project::class,
+                            'subject_id' => $project->id, 
+                            'action' => 'added member',
+                            'description' => "Added member '{$memberUser->name}' to project",
+                        ]);
+                     }
+                }
+            }
+
+        } else {
+             // If members field is present but empty (cleared selection), we might want to remove everyone except PM. 
+             // But if specific partial update logic is needed it might differ. 
+             // Assuming if 'members' is sent as empty array, we sync to just PM.
+             if ($request->has('members')) {
+                 $project->members()->sync([
+                     $project->created_by => ['role_in_project' => 'pm']
+                 ]);
+             }
+        }
+
+        return redirect()->route('dashboard', ['project_id' => $project->id])
+            ->with('success', 'Project updated successfully.');
     }
 
-    // DELETE /api/projects/{project}
+    /**
+     * Remove the specified project from storage.
+     */
     public function destroy(Request $request, Project $project)
     {
         $user = $request->user();
 
         if ($project->created_by !== $user->id) {
-            return response()->json(['message' => 'Forbidden'], 403);
+            return redirect()->back()->with('error', 'Hanya pembuat proyek yang dapat menghapus proyek ini.');
         }
 
         $project->delete();
 
-        return response()->json(['message' => 'Project deleted']);
+        return redirect()->route('dashboard')
+            ->with('success', 'Project deleted successfully.');
     }
 
-    // POST /api/projects/{project}/members
-    public function addMember(Request $request, Project $project)
+    public function showVisualize(Request $request, Project $project)
     {
         $user = $request->user();
-
-        // hanya creator yang boleh manage member (sederhana dulu)
-        if ($project->created_by !== $user->id) {
-            return response()->json(['message' => 'Forbidden'], 403);
+        
+        // Ensure user has access (Creator or Member)
+        $isMember = $project->members()->where('users.id', $user->id)->exists();
+        if ($project->created_by !== $user->id && !$isMember) {
+            abort(403);
         }
 
-        $data = $request->validate([
-            'user_id'        => 'required|exists:users,id',
-            'role_in_project'=> 'required|in:pm,member,qa,writer',
-        ]);
+        $project->load(['tasks.assignee', 'members']);
 
-        $project->members()->syncWithoutDetaching([
-            $data['user_id'] => ['role_in_project' => $data['role_in_project']],
-        ]);
-
-        return response()->json(['message' => 'Member added/updated']);
+        return view('project_views', compact('project'));
     }
 
-    // DELETE /api/projects/{project}/members/{user}
-    public function removeMember(Request $request, Project $project, User $user)
+    public function activities(Request $request, Project $project)
     {
-        $current = $request->user();
+        // Simple authorization
+        $user = $request->user();
+        $isMember = $project->members()->where('users.id', $user->id)->exists();
+        if ($project->created_by !== $user->id && !$isMember) abort(403);
 
-        if ($project->created_by !== $current->id) {
-            return response()->json(['message' => 'Forbidden'], 403);
-        }
+        $taskIds = $project->tasks()->pluck('id');
 
-        $project->members()->detach($user->id);
-
-        return response()->json(['message' => 'Member removed']);
-    }
-
-    // GET /api/projects/{project}/kanban
-    public function kanban(Project $project)
-    {
-        $tasks = Task::with('assignee:id,name')
-            ->where('project_id', $project->id)
-            ->orderByRaw("FIELD(priority, 'high','medium','low')")
-            ->orderBy('due_date')
+        $logs = \App\Models\ActivityLog::with('user')
+            ->where(function($q) use ($project, $taskIds) {
+                $q->where(function($q2) use ($project) {
+                    $q2->where('subject_type', Project::class)
+                       ->where('subject_id', $project->id);
+                })->orWhere(function($q2) use ($taskIds) {
+                    $q2->where('subject_type', Task::class)
+                       ->whereIn('subject_id', $taskIds);
+                });
+            })
+            ->latest()
+            ->take(50)
             ->get();
 
-        $grouped = [
-            'todo'        => $tasks->where('status', 'todo')->values(),
-            'in_progress' => $tasks->where('status', 'in_progress')->values(),
-            'review'      => $tasks->where('status', 'review')->values(),
-            'done'        => $tasks->where('status', 'done')->values(),
-        ];
-
-        return response()->json($grouped);
+        return response()->json($logs);
     }
-
-    // GET /api/projects/{project}/calendar?start=2025-11-01&end=2025-11-30
-    public function calendar(Request $request, Project $project)
-    {
-        $start = $request->query('start')
-            ? Carbon::parse($request->query('start'))->startOfDay()
-            : now()->startOfMonth();
-
-        $end = $request->query('end')
-            ? Carbon::parse($request->query('end'))->endOfDay()
-            : now()->endOfMonth();
-
-        $tasks = Task::where('project_id', $project->id)
-            ->whereBetween('due_date', [$start->toDateString(), $end->toDateString()])
-            ->orderBy('due_date')
-            ->get(['id', 'title', 'due_date', 'status', 'priority']);
-
-        $events = $tasks->map(function ($task) {
-            return [
-                'id'       => $task->id,
-                'title'    => $task->title,
-                'date'     => $task->due_date,
-                'status'   => $task->status,
-                'priority' => $task->priority,
-                'type'     => 'task',
-            ];
-        });
-
-        return response()->json($events);
-    }
-
-    // GET /api/projects/{project}/gantt
-    public function gantt(Project $project)
-    {
-        $tasks = Task::with('assignee:id,name')
-            ->where('project_id', $project->id)
-            ->whereNotNull('due_date')
-            ->orderBy('start_date')
-            ->get();
-
-        $items = $tasks->map(function ($task) {
-            return [
-                'id'        => $task->id,
-                'title'     => $task->title,
-                'start'     => $task->start_date
-                                    ? $task->start_date->toDateString()
-                                    : $task->created_at->toDateString(),
-                'end'       => $task->due_date->toDateString(),
-                'status'    => $task->status,
-                'assignee'  => $task->assignee ? [
-                    'id'   => $task->assignee->id,
-                    'name' => $task->assignee->name,
-                ] : null,
-            ];
-        });
-
-        return response()->json($items);
-    }
-
-    // GET /api/projects/{project}/stats
-    public function stats(Project $project)
-    {
-        $tasks = $project->tasks()->get();
-
-        $total      = $tasks->count();
-        $done       = $tasks->where('status', 'done')->count();
-        $byStatus   = $tasks->groupBy('status')->map->count();
-
-        $today = now()->toDateString();
-        $overdue = $tasks
-            ->where('status', '!=', 'done')
-            ->where('due_date', '<', $today)
-            ->count();
-
-        $completionRate = $total > 0 ? round($done / $total * 100, 1) : 0;
-
-        return response()->json([
-            'total_tasks'      => $total,
-            'done_tasks'       => $done,
-            'completion_rate'  => $completionRate,    // %
-            'overdue_tasks'    => $overdue,
-            'tasks_by_status'  => $byStatus,
-        ]);
-    }
-
-    // GET /api/projects/{project}/member-performance
-    public function memberPerformance(Project $project)
-    {
-        $members = $project->members; // user2 user3 dst
-
-        $data = $members->map(function ($user) use ($project) {
-            $tasksQuery = Task::where('project_id', $project->id)
-                ->where('assignee_id', $user->id);
-
-            $assigned = (clone $tasksQuery)->count();
-            $done     = (clone $tasksQuery)->where('status', 'done')->count();
-
-            $durations = (clone $tasksQuery)
-                ->whereNotNull('completed_at')
-                ->get()
-                ->map(fn ($task) => $task->created_at->diffInDays($task->completed_at));
-
-            $avgDays = $durations->count() ? round($durations->avg(), 1) : null;
-
-            return [
-                'user' => [
-                    'id'    => $user->id,
-                    'name'  => $user->name,
-                    'email' => $user->email,
-                ],
-                'tasks_assigned'       => $assigned,
-                'tasks_done'           => $done,
-                'done_ratio'           => $assigned > 0 ? round($done / $assigned * 100, 1) : 0,
-                'avg_completion_days'  => $avgDays,
-            ];
-        });
-
-        return response()->json($data);
-    }
-
-
 }
+
+
