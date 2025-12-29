@@ -420,7 +420,7 @@
                     <td onclick="event.stopPropagation()">
                         <div class="btn-action-group">
                             <a href="{{ route('dashboard', ['project_id' => $project->id]) }}" class="btn-action">Lihat</a>
-                            <button onclick='openEditProjectModal(@json($project))' class="btn-action">Edit</button>
+                            <button onclick="openEditProjectModal({{ json_encode($project) }})" class="btn-action">Edit</button>
                             <form action="{{ route('projects.destroy', $project->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Hapus proyek?');">
                                 @csrf @method('DELETE')
                                 <button class="btn-action btn-danger">Delete</button>
@@ -471,8 +471,8 @@
 
                         <div style="display:flex; gap:10px;">
                             <button onclick="openModal('modalCreateTask')" class="btn-main" style="padding: 8px 16px; font-size:0.9rem;">+ Tugas</button>
-                            <button onclick='openEditProjectModal(@json($selectedProject))' class="btn-action">Edit</button>
-                            <button onclick='openManageMembersModal(@json($selectedProject))' class="btn-action">Anggota</button>
+                            <button onclick="openEditProjectModal({{ json_encode($selectedProject) }})" class="btn-action">Edit</button>
+                            <button onclick="openManageMembersModal({{ json_encode($selectedProject) }})" class="btn-action">Anggota</button>
                             <button onclick="openActivityLogModal({{ $selectedProject->id }})" class="btn-action">Log</button>
                             <a href="{{ route('projects.visualize', $selectedProject->id) }}" class="btn-action">Visual</a>
                         </div>
@@ -483,7 +483,7 @@
                  @if($selectedProject->tasks->count() > 0)
                     <div style="display:flex; flex-direction:column; gap:10px;">
                     @foreach($selectedProject->tasks as $task)
-                        <div style="background:#0b0e14; padding:15px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; border:1px solid #232a3b; transition:border-color 0.2s; cursor:pointer;" onclick="openTaskDetailModal({{ json_encode($task) }})">
+                        <div style="background:#0b0e14; padding:15px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; border:1px solid #232a3b; transition:border-color 0.2s; cursor:pointer;" onclick="openTaskDetailModal({{ $task->id }})">
                             <div>
                                 <div style="font-weight:bold; color: {{ $task->status == 'done' ? '#718096' : 'white' }}; {{ $task->status == 'done' ? 'text-decoration: line-through;' : '' }}">
                                     {{ $task->title }}
@@ -498,7 +498,7 @@
                                 <span class="badge badge-priority-{{ $task->priority }}">{{ ucfirst($task->priority) }}</span>
                                 
                                 <div class="btn-action-group">
-                                    <button onclick='openEditTaskModal(@json($task))' class="btn-action" style="padding:4px 8px;">✎</button>
+                                    <button onclick="openEditTaskModal({{ $task->id }})" class="btn-action" style="padding:4px 8px;">✎</button>
                                     <form action="{{ route('tasks.destroy', $task->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Hapus?');">
                                         @csrf @method('DELETE')
                                         <button class="btn-action btn-danger" style="padding:4px 8px;">×</button>
@@ -592,6 +592,8 @@
                         Pilih Anggota...
                     </div>
                     <div class="multi-select-options">
+                        <input type="text" class="multi-select-search" placeholder="Cari anggota..." onkeyup="filterMultiSelect(this)" onclick="event.stopPropagation()" style="width: 100%; padding: 8px; margin-bottom: 5px; background: #0b0e14; border: 1px solid #2D3748; color: #fff; border-radius: 4px; box-sizing: border-box;">
+
                         @foreach($allUsers as $u)
                         <label class="multi-select-option">
                             <input type="checkbox" name="members[]" value="{{ $u->id }}" onchange="updateMultiSelectLabel('createProjectMembers')">
@@ -650,6 +652,8 @@
                         Pilih Anggota...
                     </div>
                     <div class="multi-select-options">
+                        <input type="text" class="multi-select-search" placeholder="Cari anggota..." onkeyup="filterMultiSelect(this)" onclick="event.stopPropagation()" style="width: 100%; padding: 8px; margin-bottom: 5px; background: #0b0e14; border: 1px solid #2D3748; color: #fff; border-radius: 4px; box-sizing: border-box;">
+
                         @foreach($allUsers as $u)
                         <label class="multi-select-option">
                             <input type="checkbox" name="members[]" value="{{ $u->id }}" id="edit_member_{{ $u->id }}" onchange="updateMultiSelectLabel('editProjectMembers')">
@@ -734,10 +738,6 @@
                             <option value="medium">Medium</option>
                             <option value="high">High</option>
                         </select>
-                    </div>
-                    <div>
-                        <label class="form-label">Progress (%)</label>
-                        <input type="number" name="progress" id="editTaskProgress" class="form-control" min="0" max="100">
                     </div>
                 </div>
                 <button type="submit" class="btn-submit">Update</button>
@@ -859,6 +859,21 @@ window.addEventListener('click', function(e) {
         e.target.classList.remove('active');
     }
 });
+
+function filterMultiSelect(input) {
+    const filter = input.value.toLowerCase();
+    const options = input.parentElement.querySelectorAll('.multi-select-option');
+    
+    options.forEach(option => {
+        const text = option.innerText.toLowerCase();
+        if (text.includes(filter)) {
+            option.style.display = 'flex';
+        } else {
+            option.style.display = 'none';
+        }
+    });
+}
+
 function openModal(id){ document.getElementById(id).classList.add('active'); }
 function closeModal(id){ document.getElementById(id).classList.remove('active'); }
 
@@ -884,70 +899,77 @@ function openEditProjectModal(project){
     document.getElementById('formEditProject').action = url;
     openModal('modalEditProject');
 }
-function openEditTaskModal(task){
-    document.getElementById('editTaskTitle').value = task.title;
-    document.getElementById('editTaskDescription').value = task.description || '';
-    document.getElementById('editTaskDueDate').value = task.due_date ? task.due_date.substring(0, 10) : '';
-    document.getElementById('editTaskStatus').value = task.status;
+function openEditTaskModal(taskId){
+    // Reset form
+    document.getElementById('editTaskTitle').value = 'Loading...';
+    document.getElementById('editTaskDescription').value = '';
     
-    // New Fields
-    document.getElementById('editTaskPriority').value = task.priority || 'medium';
-    document.getElementById('editTaskProgress').value = task.progress || 0;
-
-    let url = "{{ route('tasks.update', ':id') }}".replace(':id', task.id);
-    document.getElementById('formEditTask').action = url;
-    openModal('modalEditTask');
+    fetch(`/tasks/${taskId}`).then(res => {
+        if(!res.ok) throw new Error(res.statusText);
+        return res.json();
+    }).then(task => {
+        document.getElementById('editTaskTitle').value = task.title;
+        document.getElementById('editTaskDescription').value = task.description || '';
+        document.getElementById('editTaskDueDate').value = task.due_date ? task.due_date.substring(0, 10) : '';
+        document.getElementById('editTaskStatus').value = task.status;
+        
+        // New Fields
+        document.getElementById('editTaskPriority').value = task.priority || 'medium';
+    
+        let url = "{{ route('tasks.update', ':id') }}".replace(':id', task.id);
+        document.getElementById('formEditTask').action = url;
+        openModal('modalEditTask');
+    }).catch(err => {
+        console.error('Error loading task:', err);
+        alert('Failed to load task for editing: ' + err.message);
+    });
 }
 
 // Timer Logic
 let timerInterval;
 let timerSeconds = 0;
 
-function openTaskDetailModal(task){
+function openTaskDetailModal(taskId){
     openModal('modalTaskDetail');
-    currentTaskId = task.id;
-    currentProjectID = task.project_id; // Fix: Set immediately
+    document.getElementById('detailTaskTitle').innerText = 'Loading...';
+    document.getElementById('detailTaskDescription').innerText = '...';
+    document.getElementById('subtaskList').innerHTML = '';
+    document.getElementById('commentList').innerHTML = '';
+    document.getElementById('attachmentList').innerHTML = '';
 
-    document.getElementById('detailTaskTitle').innerText = task.title; 
-    document.getElementById('detailTaskDescription').innerText = task.description || '-';
-    
-    // Badge & Status
-    document.getElementById('detailTaskStatus').innerText = task.status;
-    document.getElementById('detailTaskStatus').className = 'badge badge-' + task.status;
-    
-    // Priority Badge
-    document.getElementById('detailTaskPriority').innerText = (task.priority || 'medium');
-    document.getElementById('detailTaskPriority').className = 'badge badge-priority-' + (task.priority || 'medium');
-    
-    // Removed Progress per request
+    fetch(`/tasks/${taskId}`).then(res => res.json()).then(task => {
+        currentTaskId = task.id;
+        currentProjectID = task.project_id; 
 
-    document.getElementById('detailTaskDueDate').innerText = task.due_date || '-';
-    
-    if(task.assignee){
-        document.getElementById('assigneeName').innerText = task.assignee.name;
-        document.getElementById('assigneeEmail').innerText = task.assignee.email;
-        document.getElementById('assigneeAvatar').innerText = task.assignee.name.substring(0,2).toUpperCase();
-    } else {
-        // Fallback or explicit 'Unassigned'
-        // If we want it to default to creator if unassigned (as per user request logic 'pembuat task'), 
-        // we need task.creator loaded. But usually assignee is set on creation.
-        // If it shows '-', it means assignee_id is null in DB or relation not loaded.
-        // Since we explicitly set assignee_id = user_id on creation, it should be there.
-        // If not, we show Unassigned.
-        document.getElementById('assigneeName').innerText = 'Unassigned';
-        document.getElementById('assigneeEmail').innerText = '';
-        document.getElementById('assigneeAvatar').innerText = '?';
-    }
-    
-    loadComments(currentTaskId);
-    loadAttachments(currentTaskId);
-    
-    // Subtasks
-    // Fetch latest task details including subtasks
-    document.getElementById('subtaskList').innerHTML = '<div style="color:#718096; font-size:0.8rem;">Loading...</div>';
-    fetch(`/tasks/${task.id}`).then(res=>res.json()).then(fullTask => {
-        // currentProjectID = fullTask.project_id; // Already set
-        renderSubtasks(fullTask.subtasks);
+        document.getElementById('detailTaskTitle').innerText = task.title; 
+        document.getElementById('detailTaskDescription').innerText = task.description || '-';
+        
+        // Badge & Status
+        document.getElementById('detailTaskStatus').innerText = task.status;
+        document.getElementById('detailTaskStatus').className = 'badge badge-' + task.status;
+        
+        // Priority Badge
+        document.getElementById('detailTaskPriority').innerText = (task.priority || 'medium');
+        document.getElementById('detailTaskPriority').className = 'badge badge-priority-' + (task.priority || 'medium');
+        
+        document.getElementById('detailTaskDueDate').innerText = task.due_date || '-';
+        
+        if(task.assignee){
+            document.getElementById('assigneeName').innerText = task.assignee.name;
+            document.getElementById('assigneeEmail').innerText = task.assignee.email;
+            document.getElementById('assigneeAvatar').innerText = task.assignee.name.substring(0,2).toUpperCase();
+        } else {
+            document.getElementById('assigneeName').innerText = 'Unassigned';
+            document.getElementById('assigneeEmail').innerText = '';
+            document.getElementById('assigneeAvatar').innerText = '?';
+        }
+        
+        loadComments(currentTaskId); // Uses API
+        loadAttachments(currentTaskId); // Uses API
+        renderSubtasks(task.subtasks); // Uses API data
+    }).catch(err => {
+        alert('Failed to load task details');
+        closeModal('modalTaskDetail');
     });
 }
 

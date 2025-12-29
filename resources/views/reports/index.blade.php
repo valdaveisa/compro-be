@@ -16,7 +16,7 @@
                     @endforeach
                 </select>
             </form>
-            <button class="btn-submit" style="font-size:0.9rem;">Export Laporan</button>
+            <a href="{{ route('reports.export', ['project_id' => request('project_id')]) }}" class="btn-submit" style="font-size:0.9rem; text-decoration:none; display:inline-flex; align-items:center;">Export Laporan</a>
             <a href="{{ route('dashboard') }}" class="btn-action">Kembali</a>
         </div>
     </div>
@@ -32,15 +32,23 @@
                 <div class="metric-value">{{ $totalProjects }}</div>
             </div>
             <div class="metric-card" style="border-left: 3px solid #48BB78;">
-                <div class="metric-label" style="color:#68D391;">Proyek Selesai Tepat Waktu</div>
+                <div class="metric-label" style="color:#68D391;">
+                    {{ isset($selectedProject) ? 'TUGAS SELESAI' : 'PROYEK SELESAI' }}
+                </div>
                 <div class="metric-value">
-                    {{ $completedOnTimeCount }} 
-                    <span style="font-size:1rem; color:#A0AEC0; font-weight:normal;">({{ $totalProjects > 0 ? round(($completedOnTimeCount/$totalProjects)*100) : 0 }}%)</span>
+                    {{ $finishedCount }} 
+                    @if(isset($selectedProject))
+                        <span style="font-size:1rem; color:#A0AEC0; font-weight:normal;">({{ $totalProjects > 0 ? round(($finishedCount/($selectedProject->tasks->count() > 0 ? $selectedProject->tasks->count() : 1))*100) : 0 }}%)</span>
+                    @else
+                        <span style="font-size:1rem; color:#A0AEC0; font-weight:normal;">({{ $totalProjects > 0 ? round(($finishedCount/$totalProjects)*100) : 0 }}%)</span>
+                    @endif
                 </div>
             </div>
             <div class="metric-card" style="border-left: 3px solid #F56565;">
-                <div class="metric-label" style="color:#FC8181;">Tugas Terlambat</div>
-                <div class="metric-value">{{ $overdueTasksCount }}</div>
+                <div class="metric-label" style="color:#FC8181;">
+                     {{ isset($selectedProject) ? 'TUGAS BELUM SELESAI' : 'PROYEK BELUM SELESAI' }}
+                </div>
+                <div class="metric-value">{{ $unfinishedCount }}</div>
             </div>
             <div class="metric-card" style="border-left: 3px solid #F6E05E;">
                 <div class="metric-label" style="color:#F6E05E;">Task Burndown Rate</div>
@@ -74,10 +82,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <div style="margin-top:20px; font-size:0.8rem; color:#718096;">
-            Data di atas disajikan untuk membantu pengambilan keputusan strategis Project Manager.
         </div>
     </div>
 

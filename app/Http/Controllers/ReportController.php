@@ -34,29 +34,37 @@ class ReportController extends Controller
         // 1. Total Projects (or 1 if selected)
         $totalProjects = $selectedProject ? 1 : $projects->count();
 
-        // 2. Completed On Time
-        // Logic: Status done AND updated_at <= end_date
-        $completedOnTimeQuery = clone $projectsQuery;
+        // 2. Finished & Unfinished Metrics
+        // Context depends on $selectedProject
+        
+        $finishedCount = 0;
+        $unfinishedCount = 0;
+        $finishedLabel1 = "";
+        $unfinishedLabel2 = "";
+
         if ($selectedProject) {
-            $completedOnTimeCount = ($selectedProject->status == 'done' && $selectedProject->updated_at <= $selectedProject->end_date) ? 1 : 0;
+            // SINGLE PROJECT VIEW: Metrics are about TASKS
+            // Metric 1: Tugas Selesai
+            $finishedCount = Task::where('project_id', $selectedProject->id)->where('status', 'done')->count();
+            
+            // Metric 2: Tugas Belum Selesai (Not done)
+            $unfinishedCount = Task::where('project_id', $selectedProject->id)->where('status', '!=', 'done')->count();
+            
         } else {
-            $completedOnTimeCount = Project::whereIn('id', $projects->pluck('id'))
+            // GLOBAL VIEW: Metrics are about PROJECTS
+            // Metric 1: Proyek Selesai
+            $finishedCount = Project::whereIn('id', $projects->pluck('id'))
                 ->where('status', 'done')
-                ->whereColumn('updated_at', '<=', 'end_date')
+                ->count();
+                
+            // Metric 2: Proyek Belum Selesai (Not done)
+            $unfinishedCount = Project::whereIn('id', $projects->pluck('id'))
+                ->where('status', '!=', 'done')
                 ->count();
         }
-        
-        // 3. Overdue Tasks
-        $taskQuery = Task::whereIn('project_id', $projects->pluck('id'))
-            ->where('status', '!=', 'done')
-            ->where('due_date', '<', now());
-            
-        if ($selectedProject) {
-            $taskQuery->where('project_id', $selectedProject->id);
-        }
-        $overdueTasksCount = $taskQuery->count();
 
         // 4. Burndown Rate (Done / Total)
+        // Keep as is, works for both contexts (task level aggregation)
         $allTasksQuery = Task::whereIn('project_id', $projects->pluck('id'));
         if ($selectedProject) $allTasksQuery->where('project_id', $selectedProject->id);
         
@@ -111,13 +119,76 @@ class ReportController extends Controller
             'projects', 
             'selectedProject', 
             'totalProjects', 
-            'completedOnTimeCount', 
-            'overdueTasksCount', 
+            'totalProjects', 
+            'finishedCount', 
+            'unfinishedCount', 
             'burndownRate',
             'workloadLabels',
             'workloadValues',
             'statusLabels',
             'statusValues'
         ));
+    }
+
+    public function export(Request $request) 
+    {
+        $user = $request->user();
+        
+        $projectsQuery = Project::where('created_by', $user->id)
+            ->orWhereHas('members', function ($q) use ($user) {
+                $q->where('users.id', $user->id);
+            });
+            
+        // Apply single project filter if present
+        if ($request->has('project_id') && $request->project_id != '') {
+            $projectsQuery->where('id', $request->project_id);
+        }
+            
+        $projects = $projectsQuery->with(['members', 'tasks'])->get();
+
+        $filename = "laporan-proyek-" . date('Y-m-d') . ".csv";
+        
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=$filename",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $callback = function() use ($projects) {
+            $file = fopen('php://output', 'w');
+            
+            // Add BOM for Excel UTF-8 recognition
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+            
+            // Header
+            fputcsv($file, ['ID', 'Nama Proyek', 'Status', 'Start Date', 'End Date', 'Total Tugas', 'Tugas Selesai', 'Burndown (%)', 'PM'], ';');
+
+            foreach ($projects as $project) {
+                $totalTasks = $project->tasks->count();
+                $doneTasks = $project->tasks->where('status', 'done')->count();
+                $burndown = $totalTasks > 0 ? round(($doneTasks / $totalTasks) * 100) : 0;
+                
+                // Find PM
+                $pm = $project->members->where('pivot.role_in_project', 'pm')->first();
+                $pmEmail = $pm ? $pm->email : '-';
+
+                fputcsv($file, [
+                    $project->id, 
+                    $project->name, 
+                    ucfirst($project->status), 
+                    $project->start_date, 
+                    $project->end_date, 
+                    $totalTasks,
+                    $doneTasks,
+                    str_replace('.', ',', $burndown . '%'), // Ensure percentages use comma if needed, though % string is safe
+                    $pmEmail
+                ], ';');
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }
