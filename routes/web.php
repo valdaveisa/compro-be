@@ -30,7 +30,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/tasks/{task}/attachments', [\App\Http\Controllers\AttachmentController::class, 'index'])->name('attachments.index');
     Route::post('/tasks/{task}/attachments', [\App\Http\Controllers\AttachmentController::class, 'store'])->name('attachments.store');
     Route::delete('/attachments/{attachment}', [\App\Http\Controllers\AttachmentController::class, 'destroy'])->name('attachments.destroy');
-    Route::get('/tasks/{task}/attachments/download', [\App\Http\Controllers\AttachmentController::class, 'download'])->name('attachments.download');
+    Route::get('/attachments/{attachment}/download', [\App\Http\Controllers\AttachmentController::class, 'download'])->name('attachments.download');
 
     // Notification Routes
     Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
