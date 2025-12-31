@@ -62,6 +62,11 @@
                             <div style="display: flex; gap: 10px;">
                                 <button onclick='openEditUserModal(@json($user))' style="background: #3182CE; color: white; border: none; padding: 8px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">Edit</button>
                                 
+                                <form action="{{ route('admin.users.reset2FA', $user->id) }}" method="POST" onsubmit="return confirm('Reset 2FA untuk user ini? Mereka harus scan QR code ulang setelah ini.');">
+                                    @csrf
+                                    <button type="submit" style="background: #D69E2E; color: white; border: none; padding: 8px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">Reset 2FA</button>
+                                </form>
+                                
                                 <form action="{{ route('admin.users.destroy', $user->id) }}" method="POST" onsubmit="return confirm('Hapus User ini?');">
                                     @csrf 
                                     @method('DELETE')

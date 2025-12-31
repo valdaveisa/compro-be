@@ -81,4 +81,12 @@ class UserController extends Controller
         $user->update(['role' => $request->role]);
         return redirect()->back()->with('success', 'User role updated successfully.');
     }
+
+    public function reset2FA(User $user)
+    {
+        $user->google2fa_secret = null;
+        $user->save();
+        
+        return redirect()->back()->with('success', 'User 2FA has been reset successfully. They will need to scan the QR code again upon next login.');
+    }
 }

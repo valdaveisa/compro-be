@@ -28,6 +28,7 @@ class User extends Authenticatable
         'role',
         'settings',
         'phone_number',
+        'google2fa_secret',
     ];
 
     /**
@@ -38,6 +39,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'google2fa_secret',
     ];
 
     /**

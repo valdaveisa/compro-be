@@ -7,10 +7,12 @@ Route::get('/', function () {
 });
 
 Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth', 'verified', '2fa'])
     ->name('dashboard');
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', '2fa'])->group(function () {
+    Route::get('/2fa', [\App\Http\Controllers\TwoFactorController::class, 'index'])->name('2fa.index');
+    Route::post('/2fa', [\App\Http\Controllers\TwoFactorController::class, 'verify'])->name('2fa.verify');
     Route::resource('projects', \App\Http\Controllers\ProjectController::class)->only(['store', 'update', 'destroy']);
     Route::get('/projects/{project}/visualize', [\App\Http\Controllers\ProjectController::class, 'showVisualize'])->name('projects.visualize');
     Route::get('/projects/{project}/activities', [\App\Http\Controllers\ProjectController::class, 'activities'])->name('projects.activities');
@@ -55,6 +57,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/admin/users/{user}', [\App\Http\Controllers\UserController::class, 'destroy'])->name('admin.users.destroy');
         // Legacy or specific patch if needed, but update covers it
         Route::patch('/admin/users/{user}/role', [\App\Http\Controllers\UserController::class, 'updateRole'])->name('admin.users.updateRole');
+        Route::post('/admin/users/{user}/reset-2fa', [\App\Http\Controllers\UserController::class, 'reset2FA'])->name('admin.users.reset2FA');
     });
 });
 
