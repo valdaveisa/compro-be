@@ -821,7 +821,10 @@
                 <div style="margin-top:20px;">
                     <h4 style="color:#A0AEC0;">Lampiran</h4>
                     <div id="attachmentList"></div>
-                    <button onclick="document.getElementById('fileInput').click()" class="btn-action" style="margin-top:10px;">+ Upload</button>
+                    <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+                        <button onclick="document.getElementById('fileInput').click()" class="btn-action">+ Upload</button>
+                        <span style="font-size:0.8rem; color:#718096;">(Max 5MB)</span>
+                    </div>
                     <input type="file" id="fileInput" hidden onchange="uploadFile()">
                     <span id="uploadStatus" style="color:#A0AEC0; margin-left:10px;"></span>
                 </div>
