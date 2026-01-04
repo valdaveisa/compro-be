@@ -14,7 +14,7 @@
         <!-- Left Section -->
         <div class="left-section">
             <div class="branding">
-                <div class="logo-pill">Logo</div>
+
                 <div class="app-name">
                     <span>Sistem</span>
                     <span>Manajemen Proyek</span>
