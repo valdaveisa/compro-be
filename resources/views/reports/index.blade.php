@@ -51,8 +51,16 @@
                 <div class="metric-value">{{ $unfinishedCount }}</div>
             </div>
             <div class="metric-card" style="border-left: 3px solid #F6E05E;">
-                <div class="metric-label" style="color:#F6E05E;">Task Burndown Rate</div>
-                <div class="metric-value">{{ $burndownRate }}%</div>
+                <div class="metric-label" style="color:#F6E05E;">
+                    {{ isset($selectedProject) ? 'TASK COMPLETION RATE' : 'PROJECT COMPLETION RATE' }}
+                </div>
+                <div class="metric-value">
+                    @if(isset($selectedProject))
+                        {{ $burndownRate }}%
+                    @else
+                        {{ $totalProjects > 0 ? round(($finishedCount / $totalProjects) * 100) : 0 }}%
+                    @endif
+                </div>
             </div>
         </div>
 
