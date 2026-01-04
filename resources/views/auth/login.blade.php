@@ -71,16 +71,14 @@
                                 Kata sandi salah.
                             @endif
                         </div>
-                        <a href="{{ route('password.email') }}" class="forgot-password">Lupa kata sandi?</a>
+
                     </div>
 
                     <button type="submit" class="submit-btn">
                         MASUK
                     </button>
 
-                    <div class="no-account">
-                        Belum punya akun? <a href="#">Hubungi Admin</a>
-                    </div>
+
                 </form>
             </div>
         </div>
