@@ -76,7 +76,7 @@
 
             <!-- Status Pie Chart with Custom Legend -->
             <div class="chart-panel status">
-                <h3 class="chart-title">Status Proyek (Persentase)</h3>
+                <h3 class="chart-title">{{ $chart2Title }}</h3>
                 <div class="pie-chart-wrapper">
                     <!-- Pie -->
                     <div class="pie-container">
@@ -84,9 +84,26 @@
                     </div>
                     <!-- Custom Legend -->
                     <div class="legend-container">
-                        <div class="legend-item"><span class="legend-dot" style="background:#4299E1;"></span> <div>Active <br><span class="legend-sub">({{ $statusValues[1] ?? 0 }} Proyek)</span></div></div>
-                        <div class="legend-item"><span class="legend-dot" style="background:#48BB78;"></span> <div>Done <br><span class="legend-sub">({{ $statusValues[3] ?? 0 }} Proyek)</span></div></div>
-                        <div class="legend-item"><span class="legend-dot" style="background:#F56565;"></span> <div>Closed/Hold <br><span class="legend-sub">({{ ($statusValues[2] ?? 0) + ($statusValues[0] ?? 0) }} Proyek)</span></div></div>
+                        @php
+                            $colorMap = [
+                                'todo' => '#A0AEC0',        // Gray
+                                'planned' => '#A0AEC0',     
+                                'in_progress' => '#4299E1', // Blue
+                                'active' => '#4299E1',
+                                'review' => '#ED8936',      // Orange
+                                'on_hold' => '#F56565',     // Red
+                                'done' => '#48BB78'         // Green
+                            ];
+                        @endphp
+                        @foreach($statusLabels as $index => $label)
+                            <div class="legend-item">
+                                <span class="legend-dot" style="background: {{ $colorMap[$label] ?? '#ccc' }};"></span> 
+                                <div>
+                                    {{ ucfirst(str_replace('_', ' ', $label)) }} <br>
+                                    <span class="legend-sub">({{ $statusValues[$index] ?? 0 }} {{ isset($selectedProject) ? 'Tugas' : 'Proyek' }})</span>
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
             </div>
@@ -141,15 +158,21 @@
         }
     });
 
+    @php
+        $chartLabels = array_map(fn($l) => ucfirst(str_replace('_', ' ', $l)), $statusLabels);
+        $chartColors = array_map(fn($l) => $colorMap[$l] ?? '#ccc', $statusLabels);
+    @endphp
+
     // Status Chart
     const ctxStatus = document.getElementById('statusChart').getContext('2d');
     new Chart(ctxStatus, {
         type: 'doughnut',
+
         data: {
-            labels: ['Planned', 'Active', 'On Hold', 'Done'],
+            labels: @json($chartLabels),
             datasets: [{
                 data: @json($statusValues),
-                backgroundColor: [colors.red, colors.blue, colors.red, colors.green], 
+                backgroundColor: @json($chartColors), 
                 borderWidth: 0
             }]
         },

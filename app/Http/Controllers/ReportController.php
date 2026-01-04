@@ -97,21 +97,41 @@ class ReportController extends Controller
             $workloadValues[] = $w->count;
         }
 
-        // Chart 2: Project Status Distribution (Only relevant for global view, but for single project it's just 100% one color)
-        $statusLabels = ['planned', 'active', 'on_hold', 'done'];
-        $statusValues = [0, 0, 0, 0];
+        // Chart 2: Status Distribution
+        // If Single Project -> Task Statuses
+        // If All Projects -> Project Statuses
         
+        $chart2Title = "";
+        $statusLabels = [];
+        $statusValues = [];
+        $statusColors = []; // Optional: if we want to map specific colors
+
         if ($selectedProject) {
-            $idx = array_search($selectedProject->status, $statusLabels);
-            if ($idx !== false) $statusValues[$idx] = 1;
+            $chart2Title = "Status Tugas (Persentase)";
+            $statusLabels = ['todo', 'in_progress', 'review', 'done'];
+            // Normalized labels for display? Optional, view can handle casing.
+            
+            // Count tasks
+            $taskCounts = Task::where('project_id', $selectedProject->id)
+                 ->select('status', DB::raw('count(*) as count'))
+                 ->groupBy('status')
+                 ->pluck('count', 'status')
+                 ->toArray();
+                 
+            foreach($statusLabels as $lbl) {
+                $statusValues[] = $taskCounts[$lbl] ?? 0;
+            }
         } else {
+            $chart2Title = "Status Proyek (Persentase)";
+            $statusLabels = ['planned', 'active', 'on_hold', 'done'];
+            
             $statusCounts = Project::whereIn('id', $projects->pluck('id'))
                 ->select('status', DB::raw('count(*) as count'))
                 ->groupBy('status')
                 ->pluck('count', 'status')->toArray();
                 
-            foreach($statusLabels as $idx => $status) {
-                $statusValues[$idx] = $statusCounts[$status] ?? 0;
+            foreach($statusLabels as $lbl) {
+                $statusValues[] = $statusCounts[$lbl] ?? 0;
             }
         }
 
@@ -119,14 +139,14 @@ class ReportController extends Controller
             'projects', 
             'selectedProject', 
             'totalProjects', 
-            'totalProjects', 
             'finishedCount', 
             'unfinishedCount', 
             'burndownRate',
             'workloadLabels',
             'workloadValues',
             'statusLabels',
-            'statusValues'
+            'statusValues',
+            'chart2Title'
         ));
     }
 

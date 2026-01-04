@@ -1023,13 +1023,59 @@ function renderSubtasks(subtasks){
     subtasks.forEach(s => {
         const isDone = s.status === 'done';
         const style = isDone ? 'text-decoration:line-through; color:#718096;' : 'color:#fff;';
+        
+        // Checkbox logic
+        const checkbox = `<input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleSubtaskStatus(${s.id}, '${s.status}')" style="cursor:pointer; accent-color:#ECC94B; transform:scale(1.2);">`;
+        
+        // Delete button
+        const deleteBtn = `<span onclick="deleteSubtask(${s.id})" style="color:#FC8181; cursor:pointer; font-size:1.2rem; margin-left:auto; padding:0 5px;" title="Delete Subtask">&times;</span>`;
+
         list.innerHTML += `<div class="subtask-item">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <input type="checkbox" ${isDone ? 'checked' : ''} disabled> <!-- Basic display -->
+            <div style="display:flex; align-items:center; gap:10px; width:100%;">
+                ${checkbox}
                 <span style="${style}">${escapeHtml(s.title)}</span>
+                <span class="badge badge-${s.priority}" style="margin-left:10px;">${s.priority}</span>
+                ${deleteBtn}
             </div>
-            <span class="badge badge-${s.priority}">${s.priority}</span>
         </div>`;
+    });
+}
+
+function toggleSubtaskStatus(subtaskId, currentStatus) {
+    const newStatus = currentStatus === 'done' ? 'todo' : 'done';
+    
+    fetch(`/tasks/${subtaskId}/status`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ status: newStatus })
+    }).then(res => {
+        if(res.ok) {
+            // Reload subtasks
+            fetch(`/tasks/${currentTaskId}`).then(r=>r.json()).then(t=>renderSubtasks(t.subtasks));
+        } else {
+            alert('Failed to update subtask status');
+        }
+    });
+}
+
+function deleteSubtask(subtaskId) {
+    if(!confirm('Delete this subtask?')) return;
+    
+    fetch(`/tasks/${subtaskId}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        }
+    }).then(res => {
+        if(res.ok) {
+             fetch(`/tasks/${currentTaskId}`).then(r=>r.json()).then(t=>renderSubtasks(t.subtasks));
+        } else {
+            alert('Failed to delete subtask');
+        }
     });
 }
 

@@ -97,6 +97,10 @@ class TaskController extends Controller
         $projectId = $task->project_id;
         $task->delete();
 
+        if (request()->wantsJson()) {
+            return response()->json(['message' => 'Task deleted successfully.']);
+        }
+
         return redirect()->route('dashboard', ['project_id' => $projectId])
             ->with('success', 'Task deleted successfully.');
     }
