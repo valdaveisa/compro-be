@@ -209,6 +209,12 @@
             <form method="POST" action="{{ route('login') }}">
                 @csrf
                 
+                @if ($errors->any())
+                    <div style="background: rgba(229, 62, 62, 0.2); color: #fc8181; padding: 12px; border-radius: 12px; margin-bottom: 20px; font-size: 0.9rem; text-align: center; border: 1px solid rgba(229, 62, 62, 0.3);">
+                        Email atau password yang Anda masukkan salah.
+                    </div>
+                @endif
+                
                 <div class="form-group">
                     <label class="form-label">Email</label>
                     <input type="email" name="email" class="form-input" required placeholder="Masukkan Email">
