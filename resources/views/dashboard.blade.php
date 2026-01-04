@@ -431,7 +431,9 @@
     <div class="main-card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
             <div style="color: #718096;">Total Proyek: <span style="color:#fff; font-weight:bold;">{{ $projects->count() }}</span></div>
+            @if(auth()->user()->role !== 'member')
             <button onclick="openModal('modalCreateProject')" class="btn-main">+ Tambah Proyek</button>
+            @endif
         </div>
 
         <!-- Project Table -->
@@ -460,11 +462,13 @@
                     <td onclick="event.stopPropagation()">
                         <div class="btn-action-group">
                             <a href="{{ route('dashboard', ['project_id' => $project->id]) }}" class="btn-action">Lihat</a>
+                            @if(auth()->user()->role !== 'member')
                             <button onclick="openEditProjectModal({{ json_encode($project) }})" class="btn-action">Edit</button>
                             <form action="{{ route('projects.destroy', $project->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Hapus proyek?');">
                                 @csrf @method('DELETE')
                                 <button class="btn-action btn-danger">Delete</button>
                             </form>
+                            @endif
                         </div>
                     </td>
                 </tr>
@@ -511,10 +515,14 @@
 
                         <div style="display:flex; gap:10px;">
                             <button onclick="openModal('modalCreateTask')" class="btn-main" style="padding: 8px 16px; font-size:0.9rem;">+ Tugas</button>
-                            <button onclick="openEditProjectModal({{ json_encode($selectedProject) }})" class="btn-action">Edit</button>
-                            <button onclick="openManageMembersModal({{ json_encode($selectedProject) }})" class="btn-action">Anggota</button>
-                            <button onclick="openActivityLogModal({{ $selectedProject->id }})" class="btn-action">Log</button>
-                            <a href="{{ route('projects.visualize', $selectedProject->id) }}" class="btn-action">Visual</a>
+                            @if(auth()->user()->role !== 'member')
+                                <button class="btn-action" style="padding: 5px 10px; font-size: 0.9rem;" onclick="editProject({{ $selectedProject->id }})">Edit</button>
+                                <button class="btn-action btn-danger" style="padding: 5px 10px; font-size: 0.9rem;" onclick="deleteProject({{ $selectedProject->id }})">Delete</button>
+                            @endif
+                            <button onclick="openManageMembersModal({{ json_encode($selectedProject) }})" class="btn-action" style="padding: 5px 10px; font-size: 0.9rem;">Anggota</button>
+                            <button onclick="openActivityLogModal({{ $selectedProject->id }})" class="btn-action" style="padding: 5px 10px; font-size: 0.9rem;">Log</button>
+                            <a href="{{ route('projects.visualize', $selectedProject->id) }}" class="btn-action" style="padding: 5px 10px; font-size: 0.9rem; text-decoration:none;">Visualisasi</a>
+                            <a href="{{ route('reports.index', ['project_id' => $selectedProject->id]) }}" class="btn-action" style="padding: 5px 10px; font-size: 0.9rem; text-decoration:none;">Laporan</a>
                         </div>
                     </div>
                 </div>
@@ -580,7 +588,9 @@
             
             <div style="margin-top:30px; border-top:1px solid #2D3748; padding-top:20px;">
                <div style="color:#A0AEC0; font-size:0.85rem; margin-bottom:10px;">Shortcut</div>
+               @if(auth()->user()->role !== 'member')
                <button onclick="openModal('modalCreateProject')" class="btn-action" style="width:100%; justify-content:start; margin-bottom:5px;">+ Proyek Baru</button>
+               @endif
             </div>
         </div>
     </div>

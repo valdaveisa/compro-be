@@ -17,6 +17,11 @@ class ProjectController extends Controller
     {
         $user = $request->user();
 
+        // RBAC: Member cannot create project
+        if ($user->role === 'member') {
+            abort(403, 'Anggota tim tidak dapat membuat proyek.');
+        }
+
         $data = $request->validate([
             'name'        => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -83,6 +88,11 @@ class ProjectController extends Controller
     public function update(Request $request, Project $project)
     {
         $user = $request->user();
+
+        // RBAC: Member cannot update project
+        if ($user->role === 'member') {
+            abort(403, 'Anggota tim tidak dapat mengedit proyek.');
+        }
 
         if ($project->created_by !== $user->id) {
             abort(403);
@@ -162,6 +172,11 @@ class ProjectController extends Controller
     public function destroy(Request $request, Project $project)
     {
         $user = $request->user();
+
+        // RBAC: Member cannot delete project
+        if ($user->role === 'member') {
+             return redirect()->back()->with('error', 'Anggota tim tidak dapat menghapus proyek.');
+        }
 
         if ($project->created_by !== $user->id) {
             return redirect()->back()->with('error', 'Hanya pembuat proyek yang dapat menghapus proyek ini.');
