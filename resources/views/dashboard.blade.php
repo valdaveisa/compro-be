@@ -358,6 +358,43 @@
     .detail-left { padding: 30px; border-right: 1px solid #2D3748; }
     .detail-right { padding: 30px; background-color: #0b0e14; }
 
+    /* Mention Suggestions */
+    .mention-suggestions {
+        position: absolute; 
+        background: #1A202C;
+        border: 1px solid #2D3748;
+        border-radius: 6px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 10000;
+        min-width: 200px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+        display: none;
+    }
+    .mention-item {
+        padding: 10px 12px;
+        color: #fff;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: background 0.2s;
+    }
+    .mention-item:hover, .mention-item.active {
+        background: #2D3748;
+    }
+    .mention-avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #4A5568;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: bold;
+    }
 </style>
 
 <div class="container-custom">
@@ -1190,6 +1227,130 @@ function openActivityLogModal(projectId){
                 alert('Gagal menghapus anggota');
             }
         });
+    }
+
+    /* MENTION LOGIC */
+    const availableUsersData = @json($allUsers);
+    let mentionBox = null;
+    let activeMentionIndex = 0;
+    
+    // Initialize mention box
+    document.addEventListener('DOMContentLoaded', () => {
+        mentionBox = document.createElement('div');
+        mentionBox.className = 'mention-suggestions';
+        document.body.appendChild(mentionBox);
+        
+        const commentInput = document.getElementById('commentContent');
+        if(commentInput){
+            commentInput.addEventListener('input', handleMentionInput);
+            commentInput.addEventListener('keydown', handleMentionKeydown);
+            commentInput.addEventListener('blur', () => {
+                setTimeout(() => mentionBox.style.display = 'none', 200);
+            });
+        }
+    });
+
+    function handleMentionInput(e) {
+        const input = e.target;
+        const val = input.value;
+        const cursor = input.selectionStart;
+        
+        // Find last '@' before cursor
+        const lastAt = val.substring(0, cursor).lastIndexOf('@');
+        
+        if (lastAt !== -1) {
+            const query = val.substring(lastAt + 1, cursor);
+            // Check if there's a space, which means we might not be mentioning anymore unless names have spaces (simplification: stop at space)
+            // Or allow spaces for full names? Let's check if the query contains newline or specific delimiters.
+            // For now, let's assume mentions don't have newlines
+            
+            if (!query.includes('\n')) {
+                const matches = availableUsersData.filter(u => u.name.toLowerCase().includes(query.toLowerCase()));
+                if (matches.length > 0) {
+                    showMentionSuggestions(matches, input, lastAt);
+                    return;
+                }
+            }
+        }
+        mentionBox.style.display = 'none';
+    }
+    
+    function showMentionSuggestions(users, inputElement, atIndex) {
+        mentionBox.innerHTML = '';
+        activeMentionIndex = 0;
+        
+        users.forEach((u, index) => {
+            const item = document.createElement('div');
+            item.className = 'mention-item';
+            if (index === 0) item.classList.add('active');
+            
+            item.innerHTML = `
+                <div class="mention-avatar">${u.name.substring(0,2).toUpperCase()}</div>
+                <div>
+                    <div style="font-size:0.9rem; font-weight:bold;">${u.name}</div>
+                    <div style="font-size:0.75rem; color:#A0AEC0;">${u.email}</div>
+                </div>
+            `;
+            
+            item.onclick = () => insertMention(u.name, inputElement, atIndex);
+            mentionBox.appendChild(item);
+        });
+        
+        // Position logic (approximate near cursor)
+        const rect = inputElement.getBoundingClientRect();
+        // Simple positioning: underneath the textarea, aligned left (could be improved with getCaretCoordinates)
+         // To make it more "in-place", we'd need a library or complex math. 
+         // Let's stick it at the bottom left of the textarea for now, or use absolute positioning on the container.
+         // Actually, let's just create a container relative to textarea.
+        
+        mentionBox.style.display = 'block';
+        mentionBox.style.top = (rect.bottom + window.scrollY) + 'px';
+        mentionBox.style.left = (rect.left + window.scrollX) + 'px';
+        mentionBox.style.width = rect.width + 'px';
+    }
+    
+    function insertMention(name, input, atIndex) {
+        const val = input.value;
+        const before = val.substring(0, atIndex);
+        const after = val.substring(input.selectionStart);
+        
+        const newVal = before + "@" + name + " " + after;
+        input.value = newVal;
+        input.focus();
+        
+        // Move cursor to after the inserted name
+        const newCursorPos = atIndex + name.length + 2; // +1 for @, +1 for space
+        input.setSelectionRange(newCursorPos, newCursorPos);
+        
+        mentionBox.style.display = 'none';
+    }
+
+    function handleMentionKeydown(e) {
+        if (mentionBox.style.display === 'block') {
+            const items = mentionBox.querySelectorAll('.mention-item');
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeMentionIndex = (activeMentionIndex + 1) % items.length;
+                updateActiveItem(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeMentionIndex = (activeMentionIndex - 1 + items.length) % items.length;
+                updateActiveItem(items);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if(items[activeMentionIndex]) items[activeMentionIndex].click();
+            } else if (e.key === 'Escape') {
+                mentionBox.style.display = 'none';
+            }
+        }
+    }
+    
+    function updateActiveItem(items) {
+        items.forEach(i => i.classList.remove('active'));
+        if(items[activeMentionIndex]) {
+            items[activeMentionIndex].classList.add('active');
+            items[activeMentionIndex].scrollIntoView({ block: 'nearest' });
+        }
     }
 </script>
 @endsection
