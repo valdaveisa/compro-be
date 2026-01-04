@@ -400,7 +400,10 @@
 <div class="container-custom">
     <!-- Header -->
     <div class="page-header">
-        <h1 class="page-title">Manajemen Proyek & Tugas</h1>
+        <div>
+            <h1 class="page-title">Manajemen Proyek & Tugas</h1>
+            <div style="color: #E2E8F0; font-size: 1.25rem; font-weight: 600; margin-top: 5px;">Hai, {{ auth()->user()->name }} 👋</div>
+        </div>
         <div class="btn-action-group">
             @if(auth()->user()->role === 'admin')
             <a href="{{ route('admin.users.index') }}" class="btn-action" style="font-size: 0.9rem; margin-right: 5px;">👑 Admin Panel</a>
